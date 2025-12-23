@@ -26,6 +26,7 @@ from ez_wsi_dicomweb.ml_toolkit import tags
 
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
+from data_accessors.utils import data_accessor_definition_utils
 from data_accessors.utils import json_validation_utils
 
 _InstanceJsonKeys = data_accessor_const.InstanceJsonKeys
@@ -68,43 +69,12 @@ def _get_instance_dicom_path(
     instance: Mapping[str, Any],
 ) -> dicom_path.Path:
   """Returns normalized instance DICOM path."""
-  if _InstanceJsonKeys.DICOM_SOURCE in instance:
-    instance_path = instance.get(_InstanceJsonKeys.DICOM_SOURCE)
-    if isinstance(instance_path, list):
-      if not instance_path:
-        raise data_accessor_errors.InvalidRequestFieldError(
-            'dicom_source is an empty list.'
-        )
-      if len(instance_path) > 1:
-        raise data_accessor_errors.InvalidRequestFieldError(
-            'Endpoint does not support definitions with multiple DICOMweb URIs'
-            ' in a dicom_source.'
-        )
-      instance_path = instance_path[0]
-  elif _InstanceJsonKeys.DICOM_WEB_URI in instance:
-    # Legacy support for decoding DICOM_WEB_URI used in MedSigLip Endpoint.
-    instance_path = instance.get(_InstanceJsonKeys.DICOM_WEB_URI)
-  else:
+  instance_paths = data_accessor_definition_utils.parse_dicom_source(instance)
+  if any(i.type != dicom_path.Type.INSTANCE for i in instance_paths):
     raise data_accessor_errors.InvalidRequestFieldError(
-        'DICOM path not defined.'
+        f'DICOM path "{instance_paths}" does not define a SOP instance.'
     )
-  try:
-    json_validation_utils.validate_not_empty_str(instance_path)
-  except json_validation_utils.ValidationError as exp:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        'Invalid DICOM path.'
-    ) from exp
-  try:
-    instance_path = dicom_path.FromString(instance_path)
-  except ValueError as exp:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        f'Invalid DICOMweb uri "{instance_path}".'
-    ) from exp
-  if instance_path.type != dicom_path.Type.INSTANCE:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        f'DICOM path "{instance_path}" does not define a SOP instance.'
-    )
-  return instance_path
+  return instance_paths[0]
 
 
 def _get_vl_whole_slide_microscopy_image_instances(
@@ -149,7 +119,7 @@ def get_dicom_source_type(
       ez_wsi_errors.HttpUnauthorizedError,
   ) as exp:
     raise data_accessor_errors.InvalidCredentialsError(
-        f'Credentials not accepted for listing DICOM instances for path: '
+        'Credentials not accepted for listing DICOM instances for path: '
         f'{series_path}.'
     ) from exp
   except ez_wsi_errors.HttpError as exp:

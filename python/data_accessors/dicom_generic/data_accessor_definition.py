@@ -24,6 +24,7 @@ from ez_wsi_dicomweb.ml_toolkit import dicom_path
 
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
+from data_accessors.utils import data_accessor_definition_utils
 from data_accessors.utils import json_validation_utils
 from data_accessors.utils import patch_coordinate as patch_coordinate_module
 
@@ -84,50 +85,20 @@ def json_to_generic_dicom_image(
         f'Invalid patch coordinate; {exp}; {instance_error_msg}'
     ) from exp
 
-  if _InstanceJsonKeys.DICOM_SOURCE in instance:
-    instance_path = instance.get(_InstanceJsonKeys.DICOM_SOURCE)
-    if isinstance(instance_path, list):
-      if not instance_path:
-        raise data_accessor_errors.InvalidRequestFieldError(
-            'dicom_source is an empty list.'
-        )
-      if len(instance_path) > 1:
-        raise data_accessor_errors.InvalidRequestFieldError(
-            'Endpoint does not support definitions with multiple DICOMweb URIs'
-            ' in a dicom_source.'
-        )
-      instance_path = instance_path[0]
-  elif _InstanceJsonKeys.DICOM_WEB_URI in instance:
-    # Legacy support for decoding DICOM_WEB_URI used in MedSigLip Endpoint.
-    instance_path = instance.get(_InstanceJsonKeys.DICOM_WEB_URI)
-  else:
+  instance_paths = data_accessor_definition_utils.parse_dicom_source(instance)
+  if any(i.type != dicom_path.Type.INSTANCE for i in instance_paths):
     raise data_accessor_errors.InvalidRequestFieldError(
-        'DICOM path not defined.'
+        f'Unsupported DICOM source "{instance_paths}". Required to define a'
+        ' DICOM SOP Instance.'
     )
-  try:
-    instance_path = json_validation_utils.validate_not_empty_str(instance_path)
-  except json_validation_utils.ValidationError as exp:
+  if len(instance_paths) > 1:
     raise data_accessor_errors.InvalidRequestFieldError(
-        'Invalid DICOM path.'
-    ) from exp
-  try:
-    if dicom_path.FromString(instance_path).type != dicom_path.Type.INSTANCE:
-      raise data_accessor_errors.InvalidRequestFieldError(
-          f'Unsupported DICOM source "{instance_path}". Required to define a'
-          ' DICOM SOP Instance.'
-      )
-  except ValueError as exp:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        f'Invalid DICOMweb uri "{instance_path}".'
-    ) from exp
-  if len(dicom_instances_metadata) > 1:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        'Multiple instances defined for DICOM path.'
+        'Unsupported DICOM source does not support multiple instances.'
     )
   try:
     return DicomGenericImage(
         credential_factory=credential_factory,
-        instance_path=instance_path,
+        instance_path=instance_paths[0].complete_url,
         base_request=instance,
         patch_coordinates=patch_coordinates,
         dicom_instances_metadata=dicom_instances_metadata,

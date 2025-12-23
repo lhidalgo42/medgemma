@@ -25,6 +25,7 @@ from ez_wsi_dicomweb.ml_toolkit import dicom_path
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.dicom_wsi import configuration
+from data_accessors.utils import data_accessor_definition_utils
 from data_accessors.utils import json_validation_utils
 from data_accessors.utils import patch_coordinate as patch_coordinate_module
 
@@ -99,38 +100,13 @@ def json_to_dicom_wsi_image(
         f'Invalid patch coordinate; {exp}; {instance_error_msg}'
     ) from exp
 
-  if _InstanceJsonKeys.DICOM_SOURCE in instance:
-    dcm_path = instance.get(_InstanceJsonKeys.DICOM_SOURCE)
-    if isinstance(dcm_path, list):
-      if not dcm_path:
-        raise data_accessor_errors.InvalidRequestFieldError(
-            'dicom_source is an empty list.'
-        )
-      if len(dcm_path) > 1:
-        raise data_accessor_errors.InvalidRequestFieldError(
-            'Endpoint does not support definitions with multiple digital'
-            ' pathology DICOMweb URIs in a dicom_source.'
-        )
-      dcm_path = dcm_path[0]
-  elif _InstanceJsonKeys.DICOM_WEB_URI in instance:
-    # Legacy support for decoding DICOM_WEB_URI used in MedSigLip Endpoint.
-    dcm_path = instance.get(_InstanceJsonKeys.DICOM_WEB_URI)
-  else:
+  instance_paths = data_accessor_definition_utils.parse_dicom_source(instance)
+  if len(instance_paths) > 1:
     raise data_accessor_errors.InvalidRequestFieldError(
-        'DICOM path not defined.'
+        'Endpoint does not support definitions with multiple digital pathology '
+        'DICOMweb URIs in a dicom_source.'
     )
-  try:
-    dcm_path = json_validation_utils.validate_not_empty_str(dcm_path)
-  except json_validation_utils.ValidationError as exp:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        'Invalid DICOM path.'
-    ) from exp
-  try:
-    dcm_path = dicom_path.FromString(dcm_path)
-  except ValueError as exp:
-    raise data_accessor_errors.InvalidRequestFieldError(
-        f'Invalid DICOMweb uri "{dcm_path}".'
-    ) from exp
+  dcm_path = instance_paths[0]
   if dcm_path.type != dicom_path.Type.INSTANCE:
     raise data_accessor_errors.InvalidRequestFieldError(
         f'Unsupported DICOM source "{dcm_path}". Required to define a DICOM SOP'
