@@ -27,8 +27,15 @@ class InlineText(
 ):
   """Data accessor for text passed inline in a request."""
 
-  def data_iterator(self) -> Iterator[str]:
-    return iter([self.instance.text])
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[str]]:
+    return iter([
+        abstract_data_accessor.DataAcquisition(
+            abstract_data_accessor.AccessorDataSource.TEXT,
+            iter([self.instance.text]),
+        )
+    ])
 
   def is_accessor_data_embedded_in_request(self) -> bool:
     return True
@@ -36,4 +43,3 @@ class InlineText(
   def load_data(self, stack: contextlib.ExitStack) -> None:
     """Method pre-loads data prior to data_iterator."""
     return
-

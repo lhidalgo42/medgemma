@@ -13,9 +13,12 @@
 # limitations under the License.
 """Tests for gcs_generic data accessor ."""
 import os
+from typing import Iterator, Sequence
 
 import numpy as np
 import pydicom
+
+from data_accessors import abstract_data_accessor
 
 _PYDICOM_MAJOR_VERSION = int((pydicom.__version__).split('.')[0])
 
@@ -71,3 +74,15 @@ def create_test_dicom_instance(
     test_instance.is_implicit_VR = False
     test_instance.is_little_endian = True
   return test_instance
+
+
+def flatten_data_acquisition(
+    data_acquisitions: Iterator[
+        abstract_data_accessor.DataAcquisition[np.ndarray]
+    ],
+) -> Sequence[np.ndarray]:
+  results = []
+  for data_acquisition in data_acquisitions:
+    results.extend(list(data_acquisition.acquision_data_source_iterator))
+  return results
+

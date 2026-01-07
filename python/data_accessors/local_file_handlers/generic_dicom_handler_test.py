@@ -25,6 +25,7 @@ import numpy as np
 import PIL.Image
 import pydicom
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.local_file_handlers import abstract_handler
@@ -91,7 +92,7 @@ def _mock_ct_dicom(
 class GenericDicomHandlerTest(parameterized.TestCase):
 
   def test_load_encapsulated_dicom_file_path(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [],
             {},
@@ -103,7 +104,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
 
   def test_does_not_process_wsi_dicom(self):
     self.assertEmpty(
-        list(
+        test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [],
                 {},
@@ -119,7 +120,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
   def test_load_encapsulated_dicom_from_bytes_io(self):
     with open(_encapsulated_dicom_path(), 'rb') as f:
       with io.BytesIO(f.read()) as binary_file:
-        images = list(
+        images = test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([binary_file])
             )
@@ -128,7 +129,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         self.assertEqual(images[0].shape, (1024, 1024, 1))
 
   def test_loadpatches_coordinates(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [
                 patch_coordinate.PatchCoordinate(0, 0, 10, 10),
@@ -156,7 +157,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomError,
         '.*PhotometricInterpretation is required for DICOM.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -176,7 +177,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomError,
         '.*unsupported number of samples per pixel.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -198,7 +199,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
     del dcm[required_elements]
     dcm.save_as(dcm_path)
     with self.assertRaises(data_accessor_errors.DicomError):
-      list(
+      test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -226,7 +227,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
     dcm.PhotometricInterpretation = photometric_interpretation
     dcm_path = os.path.join(self.create_tempdir(), 'test.dcm')
     dcm.save_as(dcm_path)
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [], {}, abstract_handler.InputFileIterator([dcm_path])
         )
@@ -244,7 +245,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
     dcm.PhotometricInterpretation = 'RGB'
     dcm_path = os.path.join(self.create_tempdir(), 'test.dcm')
     dcm.save_as(dcm_path)
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -267,7 +268,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
     dcm.ICCProfile = dicom_slide.get_rommrgb_icc_profile_bytes()
     dcm_path = os.path.join(self.create_tempdir(), 'test.dcm')
     dcm.save_as(dcm_path)
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -288,7 +289,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
     dcm.PhotometricInterpretation = 'RGB'
     dcm_path = os.path.join(self.create_tempdir(), 'test.dcm')
     dcm.save_as(dcm_path)
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -316,7 +317,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm.PhotometricInterpretation = 'RGB'
         dcm.SamplesPerPixel = 3
         dcm.save_as(dcm_path)
-      img = list(
+      img = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [],
               _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -340,7 +341,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm.PhotometricInterpretation = 'RGB'
         dcm.SamplesPerPixel = 3
         dcm.save_as(dcm_path)
-      img = list(
+      img = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [],
               _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -382,7 +383,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm.PhotometricInterpretation = 'RGB'
         dcm.SamplesPerPixel = 3
         dcm.save_as(dcm_path)
-      img = list(
+      img = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [],
               _mock_instance_extension_metadata({
@@ -440,7 +441,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm.PhotometricInterpretation = 'RGB'
         dcm.SamplesPerPixel = 3
         dcm.save_as(dcm_path)
-      images = list(
+      images = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               patch_coordinates,
               _mock_instance_extension_metadata({
@@ -477,7 +478,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomError,
         '.*DICOM instance encoded using unsupported transfer syntax.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -497,7 +498,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         0,
         1000,
     )
-    result = list(
+    result = test_utils.flatten_data_acquisition(
         handler.process_files(
             [], {}, abstract_handler.InputFileIterator([dcm_path])
         )
@@ -522,7 +523,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         0,
         1000,
     )
-    result = list(
+    result = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [], {}, abstract_handler.InputFileIterator([dcm_path])
         )
@@ -595,7 +596,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
       dcm_path = os.path.join(temp_dir, f'test{index}.dcm')
       dcm.save_as(dcm_path)
       dicom_files_list.append(dcm_path)
-    mri_images = list(
+    mri_images = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [], {}, abstract_handler.InputFileIterator(dicom_files_list)
         )
@@ -636,7 +637,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
           data_accessor_errors.DicomError,
           '.*DICOM instance missing PixelData.*',
       ):
-        list(
+        test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_data])
             )
@@ -659,7 +660,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
           data_accessor_errors.DicomError,
           '.*DICOM instance missing PixelData.*',
       ):
-        list(
+        test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_data])
             )
@@ -677,7 +678,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
           data_accessor_errors.DicomError,
           '.*DICOM missing TransferSyntaxUID.*',
       ):
-        list(
+        test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_data])
             )
@@ -753,7 +754,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
           raise_error_if_invalid_dicom=True
       )
       with self.assertRaises(pydicom.errors.InvalidDicomError):
-        list(
+        test_utils.flatten_data_acquisition(
             dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_data])
             )
@@ -763,7 +764,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
     with io.BytesIO(b'1342') as dcm_data:
       dicom_handler = generic_dicom_handler.GenericDicomHandler()
       self.assertEmpty(
-          list(
+          test_utils.flatten_data_acquisition(
               dicom_handler.process_files(
                   [], {}, abstract_handler.InputFileIterator([dcm_data])
               )
@@ -782,7 +783,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
           data_accessor_errors.DicomError,
           '.*DICOM instance missing PixelData.*',
       ):
-        list(
+        test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_data])
             )
@@ -798,7 +799,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         del dcm['NumberOfFrames']
         dcm.save_as(dcm_data)
       dcm_data.seek(0)
-      results = list(
+      results = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_data])
           )
@@ -816,7 +817,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
       with self.assertRaisesRegex(
           data_accessor_errors.DicomError, '.*Cannot decode DICOM pixel data.*'
       ):
-        list(
+        test_utils.flatten_data_acquisition(
             _generic_dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_data])
             )
@@ -835,7 +836,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm.PixelData = pixel_data.tobytes()
         dcm.save_as(dcm_data)
       dcm_data.seek(0)
-      results = list(
+      results = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_data])
           )
@@ -857,7 +858,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm.PixelData = pixel_data.tobytes()
         dcm.save_as(dcm_data)
       dcm_data.seek(0)
-      results = list(
+      results = test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_data])
           )
@@ -869,12 +870,6 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         generic_dicom_handler._default_mri_volume_window_op(pydicom.Dataset()),
         generic_dicom_handler.NopImageTransform,
     )
-
-  def test_not_same_acquisition_if_null_dicom(self):
-    with pydicom.dcmread(
-        test_utils.testdata_path('ct', 'test_series', 'image0.dcm')
-    ) as dcm:
-      self.assertFalse(generic_dicom_handler._same_acquisition(None, dcm))
 
   @parameterized.named_parameters([
       dict(
@@ -999,7 +994,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         dcm_path = os.path.join(temp_dir, f'test{index}.dcm')
         test_dcm.save_as(dcm_path)
         dicom_paths.append(dcm_path)
-    results = list(
+    results = test_utils.flatten_data_acquisition(
         _generic_dicom_handler.process_files(
             [], {}, abstract_handler.InputFileIterator(dicom_paths)
         )
@@ -1027,11 +1022,18 @@ class GenericDicomHandlerTest(parameterized.TestCase):
             [], {}, abstract_handler.InputFileIterator(dicom_paths)
         )
     )
+    self.assertLen(results, 1)
+    self.assertEqual(
+        results[0].acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
+    )
     expected = [
         np.full((512, 512, 1), int(round(v / 3 * 255)), dtype=np.uint8)
         for v in range(4)
     ]
-    np.testing.assert_array_equal(results, expected)
+    np.testing.assert_array_equal(
+        list(results[0].acquision_data_source_iterator), expected
+    )
 
   def test_process_mri_ct_mri(self):
     temp_dir = self.create_tempdir()
@@ -1045,20 +1047,40 @@ class GenericDicomHandlerTest(parameterized.TestCase):
       dicom_paths.append(mri_path)
     dicom_paths.append(ct_dcm_path)
     dicom_paths.append(mri_path)
-    results = list(
-        _generic_dicom_handler.process_files(
-            [], {}, abstract_handler.InputFileIterator(dicom_paths)
-        )
+    results = _generic_dicom_handler.process_files(
+        [], {}, abstract_handler.InputFileIterator(dicom_paths)
+    )
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
     )
     expected_mri = np.full((512, 512, 1), 255, dtype=np.uint8)
-    self.assertLen(results, 3)
-    np.testing.assert_array_equal(results[0], expected_mri)
-    self.assertEqual(results[1].shape, (512, 512, 3))
     np.testing.assert_array_equal(
-        np.unique(results[1]),
-        [0, 1, 2, 3, 4, 5, 128],
+        list(ds.acquision_data_source_iterator), [expected_mri]
     )
-    np.testing.assert_array_equal(results[2], expected_mri)
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_CT_VOLUME,
+    )
+    ct_results = list(ds.acquision_data_source_iterator)
+    self.assertLen(ct_results, 1)
+    self.assertEqual(ct_results[0].shape, (512, 512, 3))
+    np.testing.assert_array_equal(
+        np.unique(ct_results[0]), [0, 1, 2, 3, 4, 5, 128]
+    )
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
+    )
+    np.testing.assert_array_equal(
+        list(ds.acquision_data_source_iterator), [expected_mri]
+    )
+
+    with self.assertRaises(StopIteration):
+      next(results)
 
   def test_process_mri_ct(self):
     temp_dir = self.create_tempdir()
@@ -1071,19 +1093,31 @@ class GenericDicomHandlerTest(parameterized.TestCase):
       test_dcm.save_as(mri_path)
       dicom_paths.append(mri_path)
     dicom_paths.append(ct_dcm_path)
-    results = list(
-        _generic_dicom_handler.process_files(
-            [], {}, abstract_handler.InputFileIterator(dicom_paths)
-        )
+    results = _generic_dicom_handler.process_files(
+        [], {}, abstract_handler.InputFileIterator(dicom_paths)
+    )
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
     )
     expected_mri = np.full((512, 512, 1), 255, dtype=np.uint8)
-    self.assertLen(results, 2)
-    np.testing.assert_array_equal(results[0], expected_mri)
-    self.assertEqual(results[1].shape, (512, 512, 3))
     np.testing.assert_array_equal(
-        np.unique(results[1]),
-        [0, 1, 2, 3, 4, 5, 128],
+        list(ds.acquision_data_source_iterator), [expected_mri]
     )
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_CT_VOLUME,
+    )
+    ct_data = list(ds.acquision_data_source_iterator)
+    self.assertLen(ct_data, 1)
+    self.assertEqual(ct_data[0].shape, (512, 512, 3))
+    np.testing.assert_array_equal(
+        np.unique(ct_data[0]), [0, 1, 2, 3, 4, 5, 128]
+    )
+    with self.assertRaises(StopIteration):
+      next(results)
 
   def test_process_ct_mri(self):
     temp_dir = self.create_tempdir()
@@ -1096,19 +1130,32 @@ class GenericDicomHandlerTest(parameterized.TestCase):
       mri_path = os.path.join(temp_dir, 'mr.dcm')
       test_dcm.save_as(mri_path)
       dicom_paths.append(mri_path)
-    results = list(
-        _generic_dicom_handler.process_files(
-            [], {}, abstract_handler.InputFileIterator(dicom_paths)
-        )
+    results = _generic_dicom_handler.process_files(
+        [], {}, abstract_handler.InputFileIterator(dicom_paths)
+    )
+
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_CT_VOLUME,
+    )
+    ct_data = list(ds.acquision_data_source_iterator)
+    self.assertLen(ct_data, 1)
+    self.assertEqual(ct_data[0].shape, (512, 512, 3))
+    np.testing.assert_array_equal(
+        np.unique(ct_data[0]), [0, 1, 2, 3, 4, 5, 128]
+    )
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
     )
     expected_mri = np.full((512, 512, 1), 255, dtype=np.uint8)
-    self.assertLen(results, 2)
-    self.assertEqual(results[0].shape, (512, 512, 3))
     np.testing.assert_array_equal(
-        np.unique(results[0]),
-        [0, 1, 2, 3, 4, 5, 128],
+        list(ds.acquision_data_source_iterator), [expected_mri]
     )
-    np.testing.assert_array_equal(results[1], expected_mri)
+    with self.assertRaises(StopIteration):
+      next(results)
 
   def test_process_concatenated_dicom_raises(self):
     temp_dir = self.create_tempdir()
@@ -1124,7 +1171,7 @@ class GenericDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomError,
         '.*Concatenated DICOM are not supported.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _generic_dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator(dicom_paths)
           )

@@ -21,6 +21,7 @@ import cv2
 import numpy as np
 import openslide
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.local_file_handlers import abstract_handler
@@ -69,7 +70,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             _InstanceJsonKeys.OPENSLIDE_LEVEL_INDEX: index
         }
     }
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             [],
             instance_json,
@@ -103,7 +104,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             _InstanceJsonKeys.OPENSLIDE_LEVEL_HEIGHT_PX: level_shape[0],
         }
     }
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             [],
             instance_json,
@@ -138,7 +139,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             ),
         }
     }
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             [],
             instance_json,
@@ -168,7 +169,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             _InstanceJsonKeys.OPENSLIDE_LEVEL_INDEX: 8
         }
     }
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             patch_coordinates,
             instance_json,
@@ -205,7 +206,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
     with self.assertRaises(
         data_accessor_errors.PatchOutsideOfImageDimensionsError
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               patch_coordinates,
               instance_json,
@@ -236,7 +237,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
     with self.assertRaises(
         data_accessor_errors.PatchOutsideOfImageDimensionsError
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               patch_coordinates,
               instance_json,
@@ -265,7 +266,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             _InstanceJsonKeys.REQUIRE_PATCHES_FULLY_IN_SOURCE_IMAGE: False,
         },
     }
-    val = list(
+    val = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             patch_coordinates,
             instance_json,
@@ -325,7 +326,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             }
         },
     }
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             patch_coordinates,
             instance_json,
@@ -405,7 +406,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             }
         },
     }
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             patch_coordinates,
             instance_json,
@@ -452,7 +453,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             _InstanceJsonKeys.REQUIRE_PATCHES_FULLY_IN_SOURCE_IMAGE: False,
         },
     }
-    val = list(
+    val = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             patch_coordinates,
             instance_json,
@@ -488,7 +489,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
             _InstanceJsonKeys.REQUIRE_PATCHES_FULLY_IN_SOURCE_IMAGE: False,
         },
     }
-    val = list(
+    val = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             patch_coordinates,
             instance_json,
@@ -527,7 +528,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
     with open(openslide_data_path(), 'rb') as infile:
       binary_file_content = infile.read()
     with io.BytesIO(binary_file_content) as bytes_file:
-      val = list(
+      val = test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               patch_coordinates,
               instance_json,
@@ -559,7 +560,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
         },
     }
     self.assertEmpty(
-        list(
+        test_utils.flatten_data_acquisition(
             _openslide_handler.process_files(
                 patch_coordinates,
                 instance_json,
@@ -575,7 +576,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
         data_accessor_errors.InvalidRequestFieldError,
         'Invalid JSON formatted openslide pyramid level.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               [],
               {_InstanceJsonKeys.OPENSLIDE_PYRAMID_LEVEL: {3: 8}},
@@ -588,7 +589,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
         data_accessor_errors.InvalidRequestFieldError,
         'Failed to parse OpenSlide level index.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               [],
               {
@@ -605,7 +606,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
         data_accessor_errors.InvalidRequestFieldError,
         'Failed to parse OpenSlide level width and/or height.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               [],
               {
@@ -625,7 +626,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
         data_accessor_errors.InvalidRequestFieldError,
         'Failed to parse OpenSlide level width and/or height pixel spacing.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _openslide_handler.process_files(
               [],
               {
@@ -647,7 +648,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
   def test_get_default_openslide_level(
       self,
   ):
-    result = list(
+    result = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             [],
             {},
@@ -665,7 +666,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
     os_handler = openslide_handler.OpenSlideHandler(
         openslide_handler.EndpointInputDimensions(6, 6)
     )
-    result = list(
+    result = test_utils.flatten_data_acquisition(
         os_handler.process_files(
             [],
             {},
@@ -687,7 +688,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
         data_accessor_errors.InvalidRequestFieldError,
         'OpenSlide patch dimensions exceed 100,000,000 pixels.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           os_handler.process_files(
               [],
               {},
@@ -700,7 +701,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
   def test_get_default_level_with_patch_coordinates(
       self,
   ):
-    result = list(
+    result = test_utils.flatten_data_acquisition(
         _openslide_handler.process_files(
             [
                 patch_coordinate.PatchCoordinate(
@@ -725,7 +726,7 @@ class OpenslideHandlerTest(parameterized.TestCase):
     os_handler = openslide_handler.OpenSlideHandler(
         openslide_handler.EndpointInputDimensions(6, 6)
     )
-    result = list(
+    result = test_utils.flatten_data_acquisition(
         os_handler.process_files(
             [],
             {
@@ -744,31 +745,36 @@ class OpenslideHandlerTest(parameterized.TestCase):
     self.assertLen(result, 1)
     self.assertEqual(result[0].shape, (149, 200, 3))
 
-
   def test_resize_image_dimensions_no_patch_coordinates(
       self,
   ):
     os_handler = openslide_handler.OpenSlideHandler(
         openslide_handler.EndpointInputDimensions(6, 6)
     )
-    result = list(
-        os_handler.process_files(
-            [],
-            {
-                _InstanceJsonKeys.EXTENSIONS: {
-                    _InstanceJsonKeys.IMAGE_DIMENSIONS: {
-                        _InstanceJsonKeys.WIDTH: 400,
-                        _InstanceJsonKeys.HEIGHT: 300,
-                    }
+    results = os_handler.process_files(
+        [],
+        {
+            _InstanceJsonKeys.EXTENSIONS: {
+                _InstanceJsonKeys.IMAGE_DIMENSIONS: {
+                    _InstanceJsonKeys.WIDTH: 400,
+                    _InstanceJsonKeys.HEIGHT: 300,
                 }
-            },
-            abstract_handler.InputFileIterator(
-                [test_utils.testdata_path(openslide_data_path())]
-            ),
-        )
+            }
+        },
+        abstract_handler.InputFileIterator(
+            [test_utils.testdata_path(openslide_data_path())]
+        ),
     )
-    self.assertLen(result, 1)
-    self.assertEqual(result[0].shape, (300, 400, 3))
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.OPEN_SLIDE_IMAGE_PYRAMID_LEVEL,
+    )
+    image_data = list(ds.acquision_data_source_iterator)
+    self.assertLen(image_data, 1)
+    self.assertEqual(image_data[0].shape, (300, 400, 3))
+    with self.assertRaises(StopIteration):
+      next(results)
 
 
 if __name__ == '__main__':

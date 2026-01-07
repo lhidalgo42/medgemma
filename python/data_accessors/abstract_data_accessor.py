@@ -15,10 +15,30 @@
 
 import abc
 import contextlib
+import dataclasses
+import enum
 from typing import Generic, Iterator, TypeVar
 
 InstanceDataClass = TypeVar('InstanceDataClass')
 InstanceDataType = TypeVar('InstanceDataType')
+
+
+class AccessorDataSource(enum.Enum):
+  TEXT = 'TEXT'
+  DICOM_CXR_IMAGES = 'DICOM_CXR_IMAGES'
+  DICOM_CT_VOLUME = 'DICOM_CT_VOLUME'
+  DICOM_MRI_VOLUME = 'DICOM_MRI_VOLUME'
+  DICOM_WSI_MICROSCOPY_PYRAMID_LEVEL = 'DICOM_WSI_MICROSCOPY_PYRAMID_LEVEL'
+  DICOM_MICROSCOPY_IMAGES = 'DICOM_MICROSCOPY_IMAGES'
+  DICOM_EXTERNAL_CAMERA_IMAGES = 'DICOM_EXTERNAL_CAMERA_IMAGES'
+  TRADITIONAL_IMAGES = 'TRADITIONAL_IMAGES'
+  OPEN_SLIDE_IMAGE_PYRAMID_LEVEL = 'OPEN_SLIDE_IMAGE_PYRAMID_LEVEL'
+
+
+@dataclasses.dataclass(frozen=True)
+class DataAcquisition(Generic[InstanceDataType]):
+  acquision_data_source: AccessorDataSource
+  acquision_data_source_iterator: Iterator[InstanceDataType]
 
 
 class AbstractDataAccessor(
@@ -64,5 +84,12 @@ class AbstractDataAccessor(
     return self._data_accessor_length
 
   @abc.abstractmethod
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[DataAcquisition[InstanceDataType]]:
+    """Returns iterator of unique acqusions."""
+
   def data_iterator(self) -> Iterator[InstanceDataType]:
-    """Returns iterator of data."""
+    """Returns iterator of all data."""
+    for data_accessor_output in self.data_acquisition_iterator():
+      yield from data_accessor_output.acquision_data_source_iterator

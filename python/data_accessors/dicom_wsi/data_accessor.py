@@ -673,13 +673,34 @@ class DicomDigitalPathologyData(
     self._local_data = _load_slide_data(self.instance, self._settings)
     stack.enter_context(self._reset_local_file_path())
 
-  def data_iterator(self) -> Iterator[np.ndarray]:
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
     for local_data in (
         self._local_data
         if self._local_data
         else _load_slide_data(self.instance, self._settings)
     ):
-      yield from _get_dicom_patches(local_data)
+      if not local_data.patches:
+        continue
+      if isinstance(local_data.patches[0].source, dicom_slide.DicomSlide):
+        source_type = (
+            abstract_data_accessor.AccessorDataSource.DICOM_WSI_MICROSCOPY_PYRAMID_LEVEL
+        )
+      elif isinstance(
+          local_data.patches[0].source, dicom_slide.DicomMicroscopeImage
+      ):
+        source_type = (
+            abstract_data_accessor.AccessorDataSource.DICOM_MICROSCOPY_IMAGES
+        )
+      else:
+        raise data_accessor_errors.InternalError(
+            'Unsupported DICOM slide type.'
+        )
+      yield abstract_data_accessor.DataAcquisition(
+          source_type,
+          _get_dicom_patches(local_data),
+      )
 
   def is_accessor_data_embedded_in_request(self) -> bool:
     """Returns true if data is inline with request."""

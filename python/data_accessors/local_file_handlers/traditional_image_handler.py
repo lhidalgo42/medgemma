@@ -19,6 +19,7 @@ import numpy as np
 import PIL
 import PIL.Image
 
+from data_accessors import abstract_data_accessor
 from data_accessors.local_file_handlers import abstract_handler
 from data_accessors.utils import icc_profile_utils
 from data_accessors.utils import image_dimension_utils
@@ -57,9 +58,7 @@ def _generate_images(
     for pc in instance_patch_coordinates:
       if patch_required_to_be_fully_in_source_image:
         pc.validate_patch_in_dim(image_shape)
-      yield  patch_coordinate_module.get_patch_from_memory(
-          pc, img
-      )
+      yield patch_coordinate_module.get_patch_from_memory(pc, img)
 
 
 class TraditionalImageHandler(abstract_handler.AbstractHandler):
@@ -72,7 +71,7 @@ class TraditionalImageHandler(abstract_handler.AbstractHandler):
       ],
       base_request: Mapping[str, Any],
       file_paths: abstract_handler.InputFileIterator,
-  ) -> Iterator[np.ndarray]:
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
     instance_extensions = abstract_handler.get_base_request_extensions(
         base_request
     )
@@ -96,17 +95,18 @@ class TraditionalImageHandler(abstract_handler.AbstractHandler):
                   icc_profile_bytes, target_icc_profile
               )
               if transform is not None:
-                img = (
-                    icc_profile_utils.transform_image_bytes_to_target_icc_profile(
-                        img, transform
-                    )
+                img = icc_profile_utils.transform_image_bytes_to_target_icc_profile(
+                    img, transform
                 )
       except (PIL.UnidentifiedImageError, PIL.Image.DecompressionBombError):
         # The handler is purposefully eating the message here.
         # if a handler fails to process the image it returns an empty iterator.
         return
-      yield from _generate_images(
-          img, instance_patch_coordinates, instance_extensions
+      yield abstract_data_accessor.DataAcquisition(
+          abstract_data_accessor.AccessorDataSource.TRADITIONAL_IMAGES,
+          _generate_images(
+              img, instance_patch_coordinates, instance_extensions
+          ),
       )
       # mark file as being processed so custom iterator will now return next
       # file in sequence.

@@ -124,7 +124,8 @@ def _download_dicom_instances(
             temp_dir,
             series_path,
             li,
-        ) for li in instance_list
+        )
+        for li in instance_list
     ]
   with futures.ThreadPoolExecutor(
       max_workers=max_parallel_download_workers
@@ -146,7 +147,7 @@ def _get_dicom_image(
         str, generic_dicom_handler.ModalityDefaultImageTransform
     ],
     max_parallel_download_workers: int,
-) -> Iterator[np.ndarray]:
+) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
   """Returns image patch bytes from DICOM series."""
   dicom_handler = generic_dicom_handler.GenericDicomHandler(
       modality_default_image_transform,
@@ -218,7 +219,9 @@ class DicomGenericData(
     )
     stack.enter_context(self._reset_local_file_path())
 
-  def data_iterator(self) -> Iterator[np.ndarray]:
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
     return _get_dicom_image(
         self.instance,
         self._local_file_paths,

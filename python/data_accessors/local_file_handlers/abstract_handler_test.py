@@ -127,21 +127,17 @@ class AbstractHandlerTest(parameterized.TestCase):
         {},
         [test_dicom, test_image, test_dicom, test_image, test_openslide],
     )
-    next(process_files)
-    next(process_files)
-    next(process_files)
-    next(process_files)
     with self.assertRaisesRegex(
         data_accessor_errors.DataAccessorError,
         'No file handler identified for input.',
     ):
-      next(process_files)
+      test_utils.flatten_data_acquisition(process_files)
 
   def test_process_files_with_handler_success(self):
     test_dicom = test_utils.testdata_path('cxr', 'encapsulated_cxr.dcm')
     test_image = test_utils.testdata_path('image.jpeg')
     self.assertLen(
-        list(
+        test_utils.flatten_data_acquisition(
             abstract_handler.process_files_with_handlers(
                 [
                     generic_dicom_handler.GenericDicomHandler(),
@@ -161,7 +157,7 @@ class AbstractHandlerTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         data_accessor_errors.InternalError, 'No configured file handers.*'
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           abstract_handler.process_files_with_handlers(
               [],
               [],

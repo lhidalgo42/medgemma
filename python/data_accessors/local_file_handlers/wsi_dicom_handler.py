@@ -22,6 +22,7 @@ import numpy as np
 from PIL import ImageCms
 import pydicom
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_errors
 from data_accessors.local_file_handlers import abstract_handler
 from data_accessors.local_file_handlers import generic_dicom_handler
@@ -353,7 +354,7 @@ class WsiDicomHandler(abstract_handler.AbstractHandler):
       ],
       base_request: Mapping[str, Any],
       file_paths: abstract_handler.InputFileIterator,
-  ) -> Iterator[np.ndarray]:
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
     instance_extensions = abstract_handler.get_base_request_extensions(
         base_request
     )
@@ -395,12 +396,15 @@ class WsiDicomHandler(abstract_handler.AbstractHandler):
                   instance_extensions
               )
           )
-          yield from _decode_dicom_image(
-              dcm,
-              target_icc_profile,
-              instance_patch_coordinates,
-              resize_image_dimensions,
-              patch_required_to_be_fully_in_source_image,
+          yield abstract_data_accessor.DataAcquisition(
+              abstract_data_accessor.AccessorDataSource.DICOM_WSI_MICROSCOPY_PYRAMID_LEVEL,
+              _decode_dicom_image(
+                  dcm,
+                  target_icc_profile,
+                  instance_patch_coordinates,
+                  resize_image_dimensions,
+                  patch_required_to_be_fully_in_source_image,
+              ),
           )
           # mark file as being processed so custom iterator will now return next
           # file in sequence.

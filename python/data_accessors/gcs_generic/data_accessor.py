@@ -219,34 +219,6 @@ def _download_gcs_data(
     )
 
 
-def _get_gcs_blob(
-    file_handlers: Sequence[abstract_handler.AbstractHandler],
-    instance: data_accessor_definition.GcsGenericBlob,
-    timeout: int,
-    worker_type: str,
-    worker_count: int,
-    max_parallel_download_workers: int,
-    file_paths: Sequence[str],
-) -> Iterator[np.ndarray]:
-  """Returns image patch bytes from DICOM series."""
-  with contextlib.ExitStack() as stack:
-    if not file_paths:
-      file_paths = _download_gcs_data(
-          stack,
-          instance,
-          timeout,
-          worker_type,
-          worker_count,
-          max_parallel_download_workers,
-      )
-    yield from abstract_handler.process_files_with_handlers(
-        file_handlers,
-        instance.patch_coordinates,
-        instance.base_request,
-        file_paths,
-    )
-
-
 class GcsGenericData(
     abstract_data_accessor.AbstractDataAccessor[
         data_accessor_definition.GcsGenericBlob, np.ndarray
@@ -307,13 +279,24 @@ class GcsGenericData(
     )
     stack.enter_context(self._reset_local_file_path())
 
-  def data_iterator(self) -> Iterator[np.ndarray]:
-    return _get_gcs_blob(
-        self._file_handlers,
-        self.instance,
-        self._download_timeout,
-        self._download_worker_type,
-        self._download_worker_count,
-        self._max_parallel_download_workers,
-        self._local_file_paths,
-    )
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
+    with contextlib.ExitStack() as stack:
+      if self._local_file_paths:
+        file_paths = self._local_file_paths
+      else:
+        file_paths = _download_gcs_data(
+            stack,
+            self.instance,
+            self._download_timeout,
+            self._download_worker_type,
+            self._download_worker_count,
+            self._max_parallel_download_workers,
+        )
+      yield from abstract_handler.process_files_with_handlers(
+          self._file_handlers,
+          self.instance.patch_coordinates,
+          self.instance.base_request,
+          file_paths,
+      )

@@ -29,6 +29,7 @@ import numpy as np
 import PIL.Image
 import pydicom
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.local_file_handlers import abstract_handler
@@ -72,7 +73,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
 
   def test_wsi_dicom_handler_load_whole_image(self):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [], {}, abstract_handler.InputFileIterator([_wsi_dicom_file_path()])
         )
@@ -86,7 +87,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       self,
   ):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [], {}, abstract_handler.InputFileIterator([_wsi_dicom_file_path()])
         )
@@ -123,7 +124,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
   ])
   def test_wsi_dicom_handler_get_patches(self, patches):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             patches,
             {},
@@ -159,7 +160,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
   ])
   def test_wsi_dicom_handler_get_patches_matches_ez_wsi_result(self, patches):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             patches,
             {},
@@ -191,7 +192,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       self,
   ):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -215,7 +216,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
 
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -234,7 +235,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
 
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -253,7 +254,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
 
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             {},
@@ -270,7 +271,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       with open(_wsi_dicom_file_path(), 'rb') as infile:
         io_bytes.write(infile.read())
       dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-      imgs = list(
+      imgs = test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [],
               {},
@@ -284,7 +285,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
 
   def test_read_cannot_read_wsi_from_return_empty(self):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             {},
@@ -300,7 +301,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
     with self.assertRaises(
         data_accessor_errors.PatchOutsideOfImageDimensionsError
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [patch_coordinate.PatchCoordinate(1, 2, 900, 1000)],
               {},
@@ -310,7 +311,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
 
   def test_read_patch_outof_bounds_disabled_does_not_raise(self):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [patch_coordinate.PatchCoordinate(1, 2, 900, 1000)],
             _mock_instance_extension_metadata(
@@ -342,7 +343,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
 
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             {},
@@ -375,7 +376,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
 
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             {},
@@ -408,7 +409,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
 
       dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-      imgs = list(
+      imgs = test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [],
               {},
@@ -422,7 +423,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
 
   def test_resized_whole_wsi(self):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _mock_instance_extension_metadata({
@@ -446,7 +447,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       self,
   ):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _mock_instance_extension_metadata({
@@ -497,7 +498,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       self, patch, expected_diff
   ):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [patch],
             _mock_instance_extension_metadata({
@@ -541,7 +542,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
   ])
   def test_resized_wsi_patches_smaller_than_original_match_ez_wsi(self, patch):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [patch],
             _mock_instance_extension_metadata({
@@ -593,7 +594,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
   ])
   def test_resized_wsi_patches_larger_than_original(self, patch, expected_diff):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [patch],
             _mock_instance_extension_metadata({
@@ -637,7 +638,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
   ])
   def test_resized_wsi_patches_larger_than_original_match_ez_wsi(self, patch):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [patch],
             _mock_instance_extension_metadata({
@@ -674,7 +675,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
 
   def test_resized_wsi_patches_larger_than_original_whole_image(self):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _mock_instance_extension_metadata({
@@ -696,7 +697,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
 
   def test_resized_wsi_larger_than_original_whole_image_match_ez_wsi(self):
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    imgs = list(
+    imgs = test_utils.flatten_data_acquisition(
         dicom_handler.process_files(
             [],
             _mock_instance_extension_metadata({
@@ -753,7 +754,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomError,
         '.*unsupported PhotometricInterpretation.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -769,7 +770,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         data_accessor_errors.DicomError, '.*DICOM missing PixelData.*'
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -784,7 +785,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
     self.assertEmpty(
-        list(
+        test_utils.flatten_data_acquisition(
             dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_path])
             )
@@ -807,7 +808,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomError,
         '.*Cannot decode pixel data.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -825,7 +826,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
         '.*Reading concatenated WSI DICOM from sources other than a DICOM store'
         ' is not supported.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -842,7 +843,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
         data_accessor_errors.DicomTiledFullError,
         '.*DICOM DimensionOrganizationType is not TILED_FULL.*',
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           dicom_handler.process_files(
               [], {}, abstract_handler.InputFileIterator([dcm_path])
           )
@@ -856,7 +857,7 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.save_as(dcm_path)
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
     self.assertLen(
-        list(
+        test_utils.flatten_data_acquisition(
             dicom_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([dcm_path])
             )
@@ -871,14 +872,19 @@ class WsiDicomHandlerTest(parameterized.TestCase):
       dcm.DimensionOrganizationType = 'TILED_SPARSE'
       dcm.save_as(dcm_path)
     dicom_handler = wsi_dicom_handler.WsiDicomHandler()
-    self.assertLen(
-        list(
-            dicom_handler.process_files(
-                [], {}, abstract_handler.InputFileIterator([dcm_path])
-            )
-        ),
-        1,
+    results = dicom_handler.process_files(
+        [], {}, abstract_handler.InputFileIterator([dcm_path])
     )
+
+    r = next(results)
+    self.assertEqual(
+        r.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.DICOM_WSI_MICROSCOPY_PYRAMID_LEVEL,
+    )
+    self.assertLen(list(r.acquision_data_source_iterator), 1)
+    with self.assertRaises(StopIteration):
+      next(results)
+
 
 if __name__ == '__main__':
   absltest.main()

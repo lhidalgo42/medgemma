@@ -24,20 +24,6 @@ from data_accessors.inline_bytes import data_accessor_definition
 from data_accessors.local_file_handlers import abstract_handler
 
 
-def _get_generic_bytes_images(
-    file_handlers: Sequence[abstract_handler.AbstractHandler],
-    instance: data_accessor_definition.InlineBytes,
-) -> Iterator[np.ndarray]:
-  """Returns image patch bytes from inline bytes."""
-  with io.BytesIO(instance.input_bytes) as input_bytes:
-    yield from abstract_handler.process_files_with_handlers(
-        file_handlers,
-        instance.patch_coordinates,
-        instance.base_request,
-        [input_bytes],
-    )
-
-
 class InlineBytesData(
     abstract_data_accessor.AbstractDataAccessor[
         data_accessor_definition.InlineBytes, np.ndarray
@@ -53,8 +39,17 @@ class InlineBytesData(
     super().__init__(instance_class)
     self._file_handlers = file_handlers
 
-  def data_iterator(self) -> Iterator[np.ndarray]:
-    return _get_generic_bytes_images(self._file_handlers, self.instance)
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
+    """Returns image patch bytes from inline bytes."""
+    with io.BytesIO(self.instance.input_bytes) as input_bytes:
+      yield from abstract_handler.process_files_with_handlers(
+          self._file_handlers,
+          self.instance.patch_coordinates,
+          self.instance.base_request,
+          [input_bytes],
+      )
 
   def is_accessor_data_embedded_in_request(self) -> bool:
     return True
@@ -62,4 +57,3 @@ class InlineBytesData(
   def load_data(self, stack: contextlib.ExitStack) -> None:
     """Method pre-loads data prior to data_iterator."""
     return
-

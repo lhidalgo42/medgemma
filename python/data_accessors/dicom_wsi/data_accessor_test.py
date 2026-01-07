@@ -30,6 +30,7 @@ from ez_wsi_dicomweb.ml_toolkit import dicom_path
 import numpy as np
 import pydicom
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.dicom_wsi import configuration
@@ -1130,14 +1131,18 @@ class DicomDigitalPathologyDataTest(parameterized.TestCase):
           _DEBUG_SETTINGS,
           dicom_web_interface.DicomWebInterface(cf).get_instances(path),
       )
-      self.assertLen(
-          list(
-              data_accessor.DicomDigitalPathologyData(
-                  instance, _DEBUG_SETTINGS
-              ).data_iterator()
-          ),
-          expected,
-      )
+      results = data_accessor.DicomDigitalPathologyData(
+          instance, _DEBUG_SETTINGS
+      ).data_acquisition_iterator()
+      for _ in range(expected):
+        ds = next(results)
+        self.assertEqual(
+            ds.acquision_data_source,
+            abstract_data_accessor.AccessorDataSource.DICOM_MICROSCOPY_IMAGES,
+        )
+        self.assertLen(list(ds.acquision_data_source_iterator), 1)
+      with self.assertRaises(StopIteration):
+        next(results)
 
   @parameterized.parameters([1, 2, 3])
   def test_preload_microscope_images_returns_expected_number_of_images(
@@ -1433,14 +1438,18 @@ class DicomDigitalPathologyDataTest(parameterized.TestCase):
           settings,
           dicom_web_interface.DicomWebInterface(cf).get_instances(series_path),
       )
-      self.assertLen(
-          list(
-              data_accessor.DicomDigitalPathologyData(
-                  instance, settings
-              ).data_iterator()
-          ),
-          2,
-      )
+      results = data_accessor.DicomDigitalPathologyData(
+          instance, settings
+      ).data_acquisition_iterator()
+      for _ in range(2):
+        ds = next(results)
+        self.assertEqual(
+            ds.acquision_data_source,
+            abstract_data_accessor.AccessorDataSource.DICOM_WSI_MICROSCOPY_PYRAMID_LEVEL,
+        )
+        self.assertLen(list(ds.acquision_data_source_iterator), 1)
+      with self.assertRaises(StopIteration):
+        next(results)
 
 
 if __name__ == '__main__':

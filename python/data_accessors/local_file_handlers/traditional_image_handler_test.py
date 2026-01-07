@@ -24,6 +24,7 @@ from ez_wsi_dicomweb import dicom_slide
 import numpy as np
 import PIL.Image
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.local_file_handlers import abstract_handler
@@ -51,7 +52,7 @@ _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM = (
 class TraditionalImageHandlerTest(parameterized.TestCase):
 
   def test_load_image(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [],
             {},
@@ -67,7 +68,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     np.testing.assert_array_equal(images[0], expected_img)
 
   def test_load_bw_image(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [],
             {},
@@ -87,7 +88,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
   def test_load_image_from_bytes_io(self):
     with open(test_utils.testdata_path("image.jpeg"), "rb") as f:
       with io.BytesIO(f.read()) as binary_file:
-        images = list(
+        images = test_utils.flatten_data_acquisition(
             _traditonal_image_handler.process_files(
                 [], {}, abstract_handler.InputFileIterator([binary_file])
             )
@@ -101,7 +102,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
         np.testing.assert_array_equal(images[0], expected_img)
 
   def test_load_image_patches_coordinates(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [
                 patch_coordinate.PatchCoordinate(0, 0, 10, 10),
@@ -122,7 +123,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     np.testing.assert_array_equal(images[1], expected_img[10:20, 10:20, :])
 
   def test_load_image_bw_patches_coordinates(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [
                 patch_coordinate.PatchCoordinate(0, 0, 10, 10),
@@ -148,7 +149,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with self.assertRaises(
         data_accessor_errors.PatchOutsideOfImageDimensionsError
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _traditonal_image_handler.process_files(
               [
                   patch_coordinate.PatchCoordinate(-1, 0, 10, 10),
@@ -161,7 +162,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
       )
 
   def test_disable_patches_coordinates_outside_of_dim_raises(self):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [
                 patch_coordinate.PatchCoordinate(5, 0, 4000, 10),
@@ -181,7 +182,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with self.assertRaises(
         data_accessor_errors.InvalidIccProfileTransformError
     ):
-      list(
+      test_utils.flatten_data_acquisition(
           _traditonal_image_handler.process_files(
               [
                   patch_coordinate.PatchCoordinate(0, 0, 10, 10),
@@ -200,7 +201,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
   def test_transform_to_unsupported_icc_profile_nop_if_no_embedded_profile(
       self,
   ):
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -218,7 +219,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     temp_image_path = os.path.join(self.create_tempdir(), "test_image.png")
     with PIL.Image.open(test_utils.testdata_path("image.jpeg")) as source_img:
       source_img.save(temp_image_path, icc_profile=romm_profile)
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -236,7 +237,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
         test_utils.testdata_path("image_bw.jpeg")
     ) as source_img:
       source_img.save(temp_image_path, icc_profile=romm_profile)
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [],
             _MOCK_INSTANCE_METADATA_REQUEST_ICCPROFILE_NORM,
@@ -266,7 +267,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with PIL.Image.open(img_path) as source_img:
       pixel_data = np.asarray(source_img)
       width, height = source_img.width, source_img.height
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [],
             _mock_instance_extension_metadata({
@@ -309,7 +310,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with PIL.Image.open(img_path) as source_img:
       pixel_data = np.asarray(source_img)
       width, height = source_img.width, source_img.height
-    images = list(
+    images = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             patch_coordinates,
             _mock_instance_extension_metadata({
@@ -341,7 +342,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     img_path = test_utils.testdata_path("image.jpeg")
     with PIL.Image.open(img_path) as source_img:
       pixel_data = np.asarray(source_img)
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [patch_coordinate.PatchCoordinate(-10, -10, 20, 20)],
             _mock_instance_extension_metadata(
@@ -363,7 +364,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with PIL.Image.open(img_path) as source_img:
       pixel_data = np.asarray(source_img)
 
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [patch_coordinate.PatchCoordinate(10, 10, 100, 67)],
             _mock_instance_extension_metadata(
@@ -385,7 +386,7 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with PIL.Image.open(img_path) as source_img:
       pixel_data = np.asarray(source_img)
 
-    img = list(
+    img = test_utils.flatten_data_acquisition(
         _traditonal_image_handler.process_files(
             [patch_coordinate.PatchCoordinate(-1, -1, 102, 69)],
             _mock_instance_extension_metadata(
@@ -407,20 +408,25 @@ class TraditionalImageHandlerTest(parameterized.TestCase):
     with PIL.Image.open(img_path) as source_img:
       pixel_data = np.asarray(source_img)
 
-    img = list(
-        _traditonal_image_handler.process_files(
-            [patch_coordinate.PatchCoordinate(10, 11, 20, 21)],
-            _mock_instance_extension_metadata(
-                {_InstanceJsonKeys.REQUIRE_PATCHES_FULLY_IN_SOURCE_IMAGE: True}
-            ),
-            abstract_handler.InputFileIterator([img_path]),
-        )
+    results = _traditonal_image_handler.process_files(
+        [patch_coordinate.PatchCoordinate(10, 11, 20, 21)],
+        _mock_instance_extension_metadata(
+            {_InstanceJsonKeys.REQUIRE_PATCHES_FULLY_IN_SOURCE_IMAGE: True}
+        ),
+        abstract_handler.InputFileIterator([img_path]),
     )
-    self.assertLen(img, 1)
+    ds = next(results)
+    self.assertEqual(
+        ds.acquision_data_source,
+        abstract_data_accessor.AccessorDataSource.TRADITIONAL_IMAGES,
+    )
+    image_data = list(ds.acquision_data_source_iterator)
+    self.assertLen(image_data, 1)
     np.testing.assert_array_equal(
-        img[0],
-        pixel_data[11:32, 10:30, :],
+        image_data[0], pixel_data[11:32, 10:30, :]
     )
+    with self.assertRaises(StopIteration):
+      next(results)
 
 
 if __name__ == "__main__":

@@ -19,6 +19,7 @@ from typing import Any, Iterator, Mapping, Self, Sequence, Union
 
 import numpy as np
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_const
 from data_accessors import data_accessor_errors
 from data_accessors.utils import json_validation_utils
@@ -79,8 +80,8 @@ class AbstractHandler(metaclass=abc.ABCMeta):
       instance_patch_coordinates: Sequence[patch_coordinate.PatchCoordinate],
       base_request: Mapping[str, Any],
       file_paths: InputFileIterator,
-  ) -> Iterator[np.ndarray]:
-    """Yields number of file paths processed and image data iterator."""
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
+    """Yields image data from files."""
 
 
 def get_base_request_extensions(
@@ -106,7 +107,7 @@ def process_files_with_handlers(
     input_files: Union[
         Sequence[Union[str, io.BytesIO]], Iterator[Union[str, io.BytesIO]]
     ],
-) -> Iterator[np.ndarray]:
+) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
   """Yields image data from file paths using file handlers."""
   handler_index = 0
   handler_start_index = 0

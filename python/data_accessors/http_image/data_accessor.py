@@ -146,7 +146,9 @@ class HttpImageData(
     )
     stack.enter_context(self._reset_local_file_paths())
 
-  def data_iterator(self) -> Iterator[np.ndarray]:
+  def data_acquisition_iterator(
+      self,
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
     with contextlib.ExitStack() as stack:
       if self._local_file_paths:
         local_file_paths = self._local_file_paths

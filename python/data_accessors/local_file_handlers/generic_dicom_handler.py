@@ -24,6 +24,7 @@ from PIL import ImageCms
 import pydicom
 import pydicom.errors
 
+from data_accessors import abstract_data_accessor
 from data_accessors import data_accessor_errors
 from data_accessors.local_file_handlers import abstract_handler
 from data_accessors.utils import dicom_source_utils
@@ -82,6 +83,8 @@ _DICOM_TAG_KEYWORDS_EQUAL_VALUE_FOR_INSTANCES_IN_SAME_ACQUISITION = (
     'AcquisitionDateTime',
     'AcquisitionDate',
     'AcquisitionTime',
+    'PyramidUID',
+    'Modality',
 )
 
 
@@ -673,15 +676,113 @@ def _process_buffered_mri_volume(
 
 
 def _same_acquisition(
-    buffered_dicom: Optional[pydicom.FileDataset], dcm: pydicom.FileDataset
+    buffered_dicom: pydicom.FileDataset, dcm: pydicom.FileDataset
 ) -> bool:
   """Returns true if the two dicoms are from the same acquisition."""
-  if buffered_dicom is None:
-    return False
   for kw in _DICOM_TAG_KEYWORDS_EQUAL_VALUE_FOR_INSTANCES_IN_SAME_ACQUISITION:
     if buffered_dicom.get(kw) != dcm.get(kw):
       return False
   return True
+
+
+class _DicomImageQueue:
+  """Wraps a interator of DICOM images in a Queue."""
+
+  def __init__(
+      self, dicom_images: Iterator[tuple[pydicom.FileDataset, np.ndarray]]
+  ):
+    self._dicom_images = dicom_images
+    self._has_images = True
+    try:
+      self._buffered_output = next(self._dicom_images)
+    except StopIteration:
+      self._has_images = False
+
+  def has_images(self) -> bool:
+    return self._has_images
+
+  def peek_image(self) -> tuple[pydicom.FileDataset, np.ndarray]:
+    if not self._has_images:
+      raise ValueError('No more images to peek.')
+    return self._buffered_output
+
+  def pop_image(self) -> None:
+    try:
+      self._buffered_output = next(self._dicom_images)
+    except StopIteration:
+      self._has_images = False
+
+
+def _process_mri_modality_images(
+    dicom_images: _DicomImageQueue,
+) -> abstract_data_accessor.DataAcquisition[np.ndarray]:
+  """Yields transformed MRI imaging from same acquisition."""
+  buffered_dicom, img = dicom_images.peek_image()
+  dicom_images.pop_image()
+  buffered_images = [img]
+  while dicom_images.has_images():
+    dcm, img = dicom_images.peek_image()
+    modality = _get_dicom_modality(dcm)
+    dicom_source_utils.validate_modality_supported(modality)
+    if dcm.Modality != _MODALITY.MR or not _same_acquisition(
+        buffered_dicom, dcm
+    ):
+      return abstract_data_accessor.DataAcquisition(
+          abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
+          _process_buffered_mri_volume(buffered_images),
+      )
+    buffered_images.append(img)
+    dicom_images.pop_image()
+  return abstract_data_accessor.DataAcquisition(
+      abstract_data_accessor.AccessorDataSource.DICOM_MRI_VOLUME,
+      _process_buffered_mri_volume(buffered_images),
+  )
+
+
+def _transformed_non_mri_image(
+    dcm: pydicom.FileDataset,
+    modality: str,
+    img: np.ndarray,
+    modality_default_image_transform: Mapping[
+        str, ModalityDefaultImageTransform
+    ],
+) -> np.ndarray:
+  """Returns transformed imaging from non-MRI modalities."""
+  image_transform = _get_modality_image_transform(
+      dcm, modality, modality_default_image_transform
+  )
+  if img.ndim == 3 and img.shape[2] == 1:
+    if modality in _CXR_MODALITIES:
+      return _norm_cxr_imaging(image_transform, img, dcm)
+    elif modality == _MODALITY.CT:
+      return _norm_ct_imaging(image_transform, img, dcm)
+  return img
+
+
+def _process_non_mri_modality_images(
+    modality_default_image_transform: Mapping[
+        str, ModalityDefaultImageTransform
+    ],
+    dicom_images: _DicomImageQueue,
+) -> Iterator[np.ndarray]:
+  """Yields transformed non-MRI imaging from same acquisition."""
+  buffered_dicom, img = dicom_images.peek_image()
+  modality = _get_dicom_modality(buffered_dicom)
+  dicom_source_utils.validate_modality_supported(modality)
+  yield _transformed_non_mri_image(
+      buffered_dicom, modality, img, modality_default_image_transform
+  )
+  dicom_images.pop_image()
+  while dicom_images.has_images():
+    dcm, img = dicom_images.peek_image()
+    modality = _get_dicom_modality(dcm)
+    if not _same_acquisition(buffered_dicom, dcm):
+      return
+    dicom_source_utils.validate_modality_supported(modality)
+    yield _transformed_non_mri_image(
+        dcm, modality, img, modality_default_image_transform
+    )
+    dicom_images.pop_image()
 
 
 def _modality_norm(
@@ -689,45 +790,45 @@ def _modality_norm(
         str, ModalityDefaultImageTransform
     ],
     dicom_images: Iterator[tuple[pydicom.FileDataset, np.ndarray]],
-) -> Iterator[np.ndarray]:
-  """Post process DICOM images from same acquisition."""
-  buffered_dicom = None
-  buffered_images = []
-  for dcm, img in dicom_images:
+) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
+  """Post process DICOM images and yields blocks image from same acquisition."""
+  dicom_images = _DicomImageQueue(dicom_images)
+  while dicom_images.has_images():
+    dcm, _ = dicom_images.peek_image()
     modality = _get_dicom_modality(dcm)
     dicom_source_utils.validate_modality_supported(modality)
-    if modality != _MODALITY.MR:
-      # if not MRI volume then yield any buffered mri images and then
-      # yield the current image.
-      if buffered_images:
-        yield from _process_buffered_mri_volume(buffered_images)
-        buffered_images = []
-        buffered_dicom = None
-      image_transform = _get_modality_image_transform(
-          dcm, modality, modality_default_image_transform
+    if modality == _MODALITY.MR:
+      yield _process_mri_modality_images(dicom_images)
+    else:
+      match modality:
+        case _MODALITY.CT:
+          image_source = (
+              abstract_data_accessor.AccessorDataSource.DICOM_CT_VOLUME
+          )
+        case _MODALITY.DX | _MODALITY.CR:
+          image_source = (
+              abstract_data_accessor.AccessorDataSource.DICOM_CXR_IMAGES
+          )
+        case _MODALITY.GM | _MODALITY.SM:
+          # general DICOM accessor excludes WSI DICOM images.
+          # so we can assume MICROSCOPY_IMAGES
+          image_source = (
+              abstract_data_accessor.AccessorDataSource.DICOM_MICROSCOPY_IMAGES
+          )
+        case _MODALITY.XC:
+          image_source = (
+              abstract_data_accessor.AccessorDataSource.DICOM_EXTERNAL_CAMERA_IMAGES
+          )
+        case _:
+          raise data_accessor_errors.DicomError(
+              f'Unsupported DICOM modality: {modality}.'
+          )
+      yield abstract_data_accessor.DataAcquisition(
+          image_source,
+          _process_non_mri_modality_images(
+              modality_default_image_transform, dicom_images
+          ),
       )
-      if img.ndim == 3 and img.shape[2] == 1:
-        if modality in _CXR_MODALITIES:
-          img = _norm_cxr_imaging(image_transform, img, dcm)
-        elif modality in _MODALITY.CT:
-          img = _norm_ct_imaging(image_transform, img, dcm)
-      yield img
-      continue
-    if buffered_images and not _same_acquisition(buffered_dicom, dcm):
-      # if not same MRI acquisition then yield any buffered mri images
-      yield from _process_buffered_mri_volume(buffered_images)
-      buffered_images = []
-    # buffer MRI images for processing later.
-    buffered_dicom = dcm
-    buffered_images.append(img)
-  if buffered_images:
-    # yield any remaining buffered mri images.
-
-    # pylint: disable=undefined-variable
-    # pylint: disable=undefined-loop-variable
-    yield from _process_buffered_mri_volume(buffered_images)
-    # pylint: enable=undefined-variable
-    # pylint: enable=undefined-loop-variable
 
 
 def _generate_acquisition_images(
@@ -789,16 +890,20 @@ class GenericDicomHandler(abstract_handler.AbstractHandler):
       ],
       base_request: Mapping[str, Any],
       file_paths: abstract_handler.InputFileIterator,
-  ) -> Iterator[np.ndarray]:
-    return _generate_acquisition_images(
-        abstract_handler.get_base_request_extensions(base_request),
-        instance_patch_coordinates,
-        _modality_norm(
-            self._modality_default_image_transform,
-            _decode_dicom_images(
-                base_request,
-                file_paths,
-                raise_error_if_invalid_dicom=self._raise_error_if_invalid_dicom,
-            ),
+  ) -> Iterator[abstract_data_accessor.DataAcquisition[np.ndarray]]:
+    for data_source in _modality_norm(
+        self._modality_default_image_transform,
+        _decode_dicom_images(
+            base_request,
+            file_paths,
+            raise_error_if_invalid_dicom=self._raise_error_if_invalid_dicom,
         ),
-    )
+    ):
+      yield abstract_data_accessor.DataAcquisition(
+          data_source.acquision_data_source,
+          _generate_acquisition_images(
+              abstract_handler.get_base_request_extensions(base_request),
+              instance_patch_coordinates,
+              data_source.acquision_data_source_iterator,
+          ),
+      )
