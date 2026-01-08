@@ -251,6 +251,7 @@ components:
                 anyOf:
                   - $ref: "#/components/schemas/ChatCompletionContentPartTextParam"
                   - $ref: "#/components/schemas/ChatCompletionContentPartImageParam"
+                  - $ref: "#/components/schemas/RawImageParam"
                   - $ref: "#/components/schemas/ChatCompletionContentPartImageBytesParam"
                   - $ref: "#/components/schemas/ChatCompletionContentPartImageGcsParam"
                   - $ref: "#/components/schemas/ChatCompletionContentPartImageDicomParam"
@@ -351,14 +352,69 @@ components:
         - image_url
         - type
       title: ChatCompletionContentPartImageParam
-
+    RawImageParam:
+      description: >
+        An alternative image URL syntax (not recommended; prefer ImageURL) that allows Vertex AI
+        endpoints to process MedGemma’s native chat format. This enables the endpoint to handle
+        the same prompts used when running MedGemma locally via Hugging Face Transformers.
+      additionalProperties: false
+      properties:
+        image:
+          pattern: ^(https?://.+|\s*data\s*:\s*image/(png|jpeg|jpg|gif)\s*;\s*base64\s*,.+)$
+          title: SingleUrl
+        type:
+          type: string
+          const: image
+          title: Type
+        access_credential:
+          type: string
+          pattern: ^(application_default|[a-zA-Z0-9_\-.]+)$
+          description: >
+            Credentials for accessing the input data when it's not publicly accessible.
+        openslide_pyramid_level:
+          $ref: '#/components/schemas/OpenSlidePyramidLevel'
+        patch_coordinates_list:
+          type: array
+          minItems: 1
+          description: >
+            An array of coordinates defining rectangular regions of interest within the image.
+          items:
+            $ref: '#/components/schemas/PatchCoordinates'
+        extensions:
+          type: object
+          description: >
+            An optional dictionary for flexible communication between the client and server.
+            Consult the API specification on supported keys and their purposes.
+          minProperties: 1
+          properties:
+            key:
+              type: string
+              description: A unique identifier for the extension.
+            value:
+              type: object
+              description: >
+                The value associated with the extension, represented as an embedded JSON object.
+              additionalProperties: true
+      type: object
+      required:
+        - image
+        - type
+      title: RawImageParam
     ImageURL:
       additionalProperties: false
       properties:
         url:
-          type: string
-          pattern: ^(https?://.+|\s*data\s*:\s*image/(png|jpeg|jpg|gif)\s*;\s*base64\s*,.+)$
-          title: Url
+          oneOf:
+            - type: string
+              pattern: ^(https?://.+|\s*data\s*:\s*image/(png|jpeg|jpg|gif)\s*;\s*base64\s*,.+)$
+              title: SingleUrl
+            - type: array
+              title: UrlList
+              minItems: 2
+              description: List of URLS to images.
+              items:
+                type: string
+                pattern: ^(https?://.+|\s*data\s*:\s*image/(png|jpeg|jpg|gif)\s*;\s*base64\s*,.+)$
         access_credential:
           type: string
           pattern: ^(application_default|[a-zA-Z0-9_\-.]+)$

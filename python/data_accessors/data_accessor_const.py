@@ -17,7 +17,7 @@
 class InstanceJsonKeys:
   """Instance JSON Keys."""
 
-  IMAGE_FILE_URI = 'image_file_uri'
+  IMAGE = 'image'
   IMAGE_URL = 'image_url'
   INPUT_BYTES = 'input_bytes'
   GCS_SOURCE = 'gcs_source'  # generic gcs

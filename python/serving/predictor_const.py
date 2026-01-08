@@ -27,17 +27,18 @@ IMAGE = 'image'
 EXTENSIONS = data_accessor_const.InstanceJsonKeys.EXTENSIONS
 BEARER_TOKEN = data_accessor_const.InstanceJsonKeys.BEARER_TOKEN
 
-# Prediction Response Constants
 TYPE = 'type'
 ROLE = 'role'
 CONTENT = 'content'
 INPUT_TYPE = 'type'
 TEXT_INPUT_TYPE = 'text'
+IMAGE_TYPE_MEDGEMMA_INTERNAL = 'image'
 IMAGE_TYPE_DICOM = 'image_dicom'
 IMAGE_TYPE_GCS = 'image_gcs'
 IMAGE_TYPE_BYTES = 'image_bytes'
 IMAGE_TYPE_URL = 'image_url'
 IMAGE_INPUT_TYPES = {
+    IMAGE_TYPE_MEDGEMMA_INTERNAL,
     IMAGE_TYPE_DICOM,
     IMAGE_TYPE_GCS,
     IMAGE_TYPE_BYTES,

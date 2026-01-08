@@ -148,100 +148,146 @@ def _parse_image_content(
   """Parses image instance request from json."""
   if not isinstance(instance, dict):
     raise data_accessor_errors.InvalidRequestFieldError(
-        'Request image instance is not a dict.'
+        'Request image content is not a dict.'
     )
-  if instance[predictor_const.INPUT_TYPE] == predictor_const.IMAGE_TYPE_BYTES:
-    parsed_instance = (
-        inline_bytes_data_accessor_definition.json_to_generic_bytes(
-            instance[predictor_const.IMAGE_TYPE_BYTES],
-            config.endpoint_input_width,
-            config.endpoint_input_height,
-            False,  # Require patch dim match default dim.
-        )
-    )
-    return inline_bytes_data_accessor.InlineBytesData(
-        parsed_instance, _get_local_file_handlers()
-    )
-  # support HTTP data source.
-  if instance[predictor_const.INPUT_TYPE] == predictor_const.IMAGE_TYPE_URL:
-    http_record = instance[predictor_const.IMAGE_TYPE_URL]
-    parsed_instance = http_image_data_accessor_definition.json_to_http_image(
-        authentication_utils.create_auth_from_instance(
-            http_record.get(predictor_const.BEARER_TOKEN, '')
-        ),
-        http_record,
-        config.endpoint_input_width,
-        config.endpoint_input_height,
-        False,  # Require patch dim match default dim.
-    )
-    return http_image_data_accessor.HttpImageData(
-        parsed_instance,
-        _get_local_file_handlers(),
-        max_parallel_download_workers=config.max_parallel_download_workers,
-    )
-  # support GCS and DICOM.
-  if instance[predictor_const.INPUT_TYPE] == predictor_const.IMAGE_TYPE_GCS:
-    gcs_record = instance[predictor_const.IMAGE_TYPE_GCS]
-    parsed_instance = (
-        gcs_generic_data_accessor_definition.json_to_generic_gcs_image(
-            authentication_utils.create_auth_from_instance(
-                gcs_record.get(predictor_const.BEARER_TOKEN, '')
-            ),
-            gcs_record,
-            config.endpoint_input_width,
-            config.endpoint_input_height,
-            False,  # Require patch dim match default dim.
-        )
-    )
-    return gcs_generic_data_accessor.GcsGenericData(
-        parsed_instance,
-        _get_local_file_handlers(),
-        _GCS_DOWNLOAD_THREAD_COUNT,
-        max_parallel_download_workers=config.max_parallel_download_workers,
-    )
-  if instance[predictor_const.INPUT_TYPE] == predictor_const.IMAGE_TYPE_DICOM:
-    # decode dicom path
-    # determine dicom source type may query dicom store for series
-    # instance metadata.
-    dicom_record = instance[predictor_const.IMAGE_TYPE_DICOM]
-    auth = authentication_utils.create_auth_from_instance(
-        dicom_record.get(predictor_const.BEARER_TOKEN, '')
-    )
-    result = dicom_source_utils.get_dicom_source_type(auth, dicom_record)
-    # if slide microscope image
-    if (
-        result.dicom_source_type
-        == dicom_source_utils.DicomDataSourceEnum.SLIDE_MICROSCOPY_IMAGE
-    ):
-      # Define pathology DICOM input.
+  try:
+    input_type = instance[predictor_const.INPUT_TYPE]
+  except KeyError as e:
+    raise data_accessor_errors.InvalidRequestFieldError(
+        'Request image content does not define input "type" attribute.'
+    ) from e
+  match (input_type):
+    case predictor_const.IMAGE_TYPE_BYTES:
+      try:
+        image_bytes = instance[predictor_const.IMAGE_TYPE_BYTES]
+      except KeyError as e:
+        raise data_accessor_errors.InvalidRequestFieldError(
+            'Request image content does not define "image_bytes" record.'
+        ) from e
       parsed_instance = (
-          dicom_wsi_data_accessor_definition.json_to_dicom_wsi_image(
+          inline_bytes_data_accessor_definition.json_to_generic_bytes(
+              image_bytes,
+              config.endpoint_input_width,
+              config.endpoint_input_height,
+              False,  # Require patch dim match default dim.
+          )
+      )
+      return inline_bytes_data_accessor.InlineBytesData(
+          parsed_instance, _get_local_file_handlers()
+      )
+    # support HTTP data source.
+    case predictor_const.IMAGE_TYPE_URL:
+      try:
+        http_record = instance[predictor_const.IMAGE_TYPE_URL]
+      except KeyError as e:
+        raise data_accessor_errors.InvalidRequestFieldError(
+            'Request image content does not define "image_url" record.'
+        ) from e
+      parsed_instance = http_image_data_accessor_definition.json_to_http_image(
+          authentication_utils.create_auth_from_instance(
+              http_record.get(predictor_const.BEARER_TOKEN, '')
+          ),
+          http_record,
+          config.endpoint_input_width,
+          config.endpoint_input_height,
+          False,  # Require patch dim match default dim.
+      )
+      return http_image_data_accessor.HttpImageData(
+          parsed_instance,
+          _get_local_file_handlers(),
+          max_parallel_download_workers=config.max_parallel_download_workers,
+      )
+    # support MedGemma internal chat syntax.
+    case predictor_const.IMAGE_TYPE_MEDGEMMA_INTERNAL:
+      parsed_instance = http_image_data_accessor_definition.json_to_http_image(
+          authentication_utils.create_auth_from_instance(
+              instance.get(predictor_const.BEARER_TOKEN, '')
+          ),
+          instance,
+          config.endpoint_input_width,
+          config.endpoint_input_height,
+          False,  # Require patch dim match default dim.
+      )
+      return http_image_data_accessor.HttpImageData(
+          parsed_instance,
+          _get_local_file_handlers(),
+          max_parallel_download_workers=config.max_parallel_download_workers,
+      )
+    # support GCS.
+    case predictor_const.IMAGE_TYPE_GCS:
+      try:
+        gcs_record = instance[predictor_const.IMAGE_TYPE_GCS]
+      except KeyError as e:
+        raise data_accessor_errors.InvalidRequestFieldError(
+            'Request image content does not define "image_gcs" record.'
+        ) from e
+      parsed_instance = (
+          gcs_generic_data_accessor_definition.json_to_generic_gcs_image(
+              authentication_utils.create_auth_from_instance(
+                  gcs_record.get(predictor_const.BEARER_TOKEN, '')
+              ),
+              gcs_record,
+              config.endpoint_input_width,
+              config.endpoint_input_height,
+              False,  # Require patch dim match default dim.
+          )
+      )
+      return gcs_generic_data_accessor.GcsGenericData(
+          parsed_instance,
+          _get_local_file_handlers(),
+          _GCS_DOWNLOAD_THREAD_COUNT,
+          max_parallel_download_workers=config.max_parallel_download_workers,
+      )
+    # support DICOM.
+    case predictor_const.IMAGE_TYPE_DICOM:
+      # decode dicom path
+      # determine dicom source type may query dicom store for series
+      # instance metadata.
+      try:
+        dicom_record = instance[predictor_const.IMAGE_TYPE_DICOM]
+      except KeyError as e:
+        raise data_accessor_errors.InvalidRequestFieldError(
+            'Request image content does not define "image_dicom" record.'
+        ) from e
+      auth = authentication_utils.create_auth_from_instance(
+          dicom_record.get(predictor_const.BEARER_TOKEN, '')
+      )
+      result = dicom_source_utils.get_dicom_source_type(auth, dicom_record)
+      # if slide microscope image
+      if (
+          result.dicom_source_type
+          == dicom_source_utils.DicomDataSourceEnum.SLIDE_MICROSCOPY_IMAGE
+      ):
+        # Define pathology DICOM input.
+        parsed_instance = (
+            dicom_wsi_data_accessor_definition.json_to_dicom_wsi_image(
+                auth,
+                dicom_record,
+                config,
+                result.dicom_instances_metadata,
+            )
+        )
+        return dicom_wsi_data_accessor.DicomDigitalPathologyData(
+            parsed_instance, config
+        )
+      parsed_instance = (
+          dicom_generic_data_accessor_definition.json_to_generic_dicom_image(
               auth,
               dicom_record,
-              config,
+              config.endpoint_input_width,
+              config.endpoint_input_height,
+              False,  # Require patch dim match default dim.
               result.dicom_instances_metadata,
           )
       )
-      return dicom_wsi_data_accessor.DicomDigitalPathologyData(
-          parsed_instance, config
+      return dicom_generic_data_accessor.DicomGenericData(
+          parsed_instance,
+          max_parallel_download_workers=config.max_parallel_download_workers,
       )
-    parsed_instance = (
-        dicom_generic_data_accessor_definition.json_to_generic_dicom_image(
-            auth,
-            dicom_record,
-            config.endpoint_input_width,
-            config.endpoint_input_height,
-            False,  # Require patch dim match default dim.
-            result.dicom_instances_metadata,
-        )
-    )
-    return dicom_generic_data_accessor.DicomGenericData(
-        parsed_instance,
-        max_parallel_download_workers=config.max_parallel_download_workers,
-    )
-  raise data_accessor_errors.InvalidRequestFieldError(
-      'Unsupported image instance input type.'
-  )
+    case _:
+      raise data_accessor_errors.InvalidRequestFieldError(
+          'Request image content defines unsupported image type.'
+      )
 
 
 def _base64_encode_image_bytes(image_bytes: bytes) -> bytes:
@@ -463,7 +509,7 @@ def _dicom_ct_or_mri_volume_slice_index_text_entry(
     slice_index: int,
 ) -> Mapping[str, Any]:
   return {
-      'type': 'text',
+      predictor_const.INPUT_TYPE: 'text',
       'text': f'SLICE {slice_index}',
   }
 
@@ -491,13 +537,13 @@ class _MedGemmaPredictionRequest:
         continue
       revised_content = []
       for entry in message['content']:
-        entry_type = entry['type']
+        entry_type = entry[predictor_const.INPUT_TYPE]
         if entry_type not in predictor_const.IMAGE_INPUT_TYPES:
           revised_content.append(entry)
           continue
         entry = copy.copy(entry)
-        entry['type'] = _MESSAGE_CONTENT_ENTRY_TYPE_REMAP.get(
-            entry_type, entry_type
+        entry[predictor_const.INPUT_TYPE] = (
+            _MESSAGE_CONTENT_ENTRY_TYPE_REMAP.get(entry_type, entry_type)
         )
         image_content = self.content[image_content_index]
         image_content_index += 1

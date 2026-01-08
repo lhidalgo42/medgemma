@@ -30,6 +30,7 @@ import pydicom
 import requests_mock
 
 from data_accessors import data_accessor_errors
+from data_accessors.dicom_wsi import configuration as dicom_wsi_configuration
 from data_accessors.utils import test_utils
 from serving.serving_framework import model_runner
 from serving import predictor
@@ -1134,6 +1135,100 @@ class ImageEncoderTest(parameterized.TestCase):
           ],
       )
       self.assertLen(model_input_images, 2)
+
+  def test_http_image_prediction_legacy_image_syntax(self):
+    mock_prediction_input = {
+        'messages': [
+            {
+                'role': 'user',
+                'content': [{
+                    'type': 'image',
+                    'image': 'http://earth.com/image.jpeg',
+                    'patch_coordinates_list': [_pc(0, 0, 10, 10)],
+                }],
+            },
+        ],
+        'max_tokens': 500,
+        'temperature': 0,
+    }
+    with requests_mock.Mocker() as m:
+      m.get('http://earth.com/image.jpeg', content=_read_test_jpeg())
+      pred = predictor.MedGemmaPredictor(
+          prompt_converter=_mock_prompt_converter
+      )
+      mock_model_runner = mock.create_autospec(
+          model_runner.ModelRunner, instance=True
+      )
+      mock_model_runner.run_model_multiple_output.return_value = {
+          'text_output': np.array([b'test_output']),
+          'num_input_tokens': np.array(42),
+          'num_output_tokens': np.array(3),
+      }
+      pred.predict(mock_prediction_input, mock_model_runner)
+      model_text_input = mock_model_runner.run_model_multiple_output.call_args[
+          1
+      ]['model_input']['text_input']
+      model_input_images = (
+          mock_model_runner.run_model_multiple_output.call_args[1][
+              'model_input'
+          ]['image']
+      )
+      self.assertEqual(
+          model_text_input,
+          [
+              b'[{"role": "user", "content": [{"type": "image", "image":'
+              b' "http://earth.com/image.jpeg", "patch_coordinates_list":'
+              b' [{"x_origin": 0, "y_origin": 0, "width": 10, "height":'
+              b' 10}]}]}]'
+          ],
+      )
+      self.assertLen(model_input_images, 1)
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name='content_is_not_a_dict',
+          content=[],
+          msg='Request image content is not a dict.*',
+      ),
+      dict(
+          testcase_name='missing_type',
+          content={},
+          msg='Request image content does not define input "type" attribute.*',
+      ),
+      dict(
+          testcase_name='missing_image_bytes',
+          content={'type': 'image_bytes'},
+          msg='Request image content does not define "image_bytes" record.*',
+      ),
+      dict(
+          testcase_name='missing_image_url',
+          content={'type': 'image_url'},
+          msg='Request image content does not define "image_url" record.*',
+      ),
+      dict(
+          testcase_name='missing_image_gcs',
+          content={'type': 'image_gcs'},
+          msg='Request image content does not define "image_gcs" record.*',
+      ),
+      dict(
+          testcase_name='missing_image_dicom',
+          content={'type': 'image_dicom'},
+          msg='Request image content does not define "image_dicom" record.*',
+      ),
+      dict(
+          testcase_name='unsupported_image_type',
+          content={'type': 'unknown'},
+          msg='Request image content defines unsupported image type.*',
+      ),
+  ])
+  def test_parse_invalid_image_content_raises(self, content, msg):
+    config = mock.create_autospec(
+        dicom_wsi_configuration.ConfigurationSettings, instance=True
+    )
+    with self.assertRaisesRegex(
+        data_accessor_errors.InvalidRequestFieldError, msg
+    ):
+      predictor._parse_image_content(config, content)
 
 
 if __name__ == '__main__':

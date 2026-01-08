@@ -26,6 +26,11 @@ from data_accessors.utils import patch_coordinate as patch_coordinate_module
 
 _InstanceJsonKeys = data_accessor_const.InstanceJsonKeys
 _PRESENT = 'PRESENT'
+_IMAGE_URLS_JSON_KEYS = (
+    _InstanceJsonKeys.IMAGE_URL,
+    _InstanceJsonKeys.URL,
+    _InstanceJsonKeys.IMAGE,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -100,13 +105,15 @@ def json_to_http_image(
         f'Invalid patch coordinate; {exp}; {instance_error_msg}'
     ) from exp
   urls = []
-  image_urls = instance.get(_InstanceJsonKeys.IMAGE_URL)
+  image_urls = None
+  for url_key in _IMAGE_URLS_JSON_KEYS:
+    image_urls = instance.get(url_key)
+    if image_urls is not None:
+      break
   if image_urls is None:
-    image_urls = instance.get(_InstanceJsonKeys.URL)
-    if image_urls is None:
-      raise data_accessor_errors.InvalidRequestFieldError(
-          'Missing URL in image_url dict.'
-      )
+    raise data_accessor_errors.InvalidRequestFieldError(
+        'Missing URL in image_url dict.'
+    )
   if isinstance(image_urls, list):
     if not image_urls:
       raise data_accessor_errors.InvalidRequestFieldError('Empty URL list.')
