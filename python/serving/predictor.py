@@ -580,9 +580,9 @@ class _MedGemmaPredictionRequest:
     )
     input_map = {
         'text_input': np.array([prompt.encode('utf-8')], dtype=np.object_),
-        'exclude_input_in_output': np.ndarray([1], dtype=np.bool_),
-        'return_num_input_tokens': np.ndarray([1], dtype=np.bool_),
-        'return_num_output_tokens': np.ndarray([1], dtype=np.bool_),
+        'exclude_input_in_output': np.array([1], dtype=np.bool_),
+        'return_num_input_tokens': np.array([1], dtype=np.bool_),
+        'return_num_output_tokens': np.array([1], dtype=np.bool_),
     }
     if images:
       input_map['image'] = np.array(images, dtype=np.object_)
